@@ -3,12 +3,25 @@ use std::time::{Duration, Instant};
 
 use eframe::{
     App,
-    egui::{self, CentralPanel, Color32, IconData, TextStyle, ViewportBuilder},
+    egui::{self, CentralPanel, IconData, TextStyle, ViewportBuilder},
 };
 
+#[cfg(not(debug_assertions))]
 const DRINK_INTERVAL: Duration = Duration::from_secs(20 * 60); // 20 mins
+
+#[cfg(debug_assertions)]
+const DRINK_INTERVAL: Duration = Duration::from_secs(1);
+
 const ICON_BYTES: &[u8] = include_bytes!("../assets/icon.png");
 const WIN_SIZE: [f32; 2] = [265., 70.];
+
+mod colors {
+    use eframe::egui::Color32;
+
+    pub const BLUE: Color32 = Color32::from_rgb(105, 138, 185);
+    pub const RED: Color32 = Color32::from_rgb(201, 79, 109);
+    pub const MUTED: Color32 = Color32::from_additive_luminance(100);
+}
 
 fn main() -> eframe::Result<()> {
     let icon = image::load_from_memory_with_format(&ICON_BYTES, image::ImageFormat::Png)
@@ -37,15 +50,19 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-pub struct HydrationReminder {
-    pub last_check: Instant,
-    pub first_reminder: bool,
+struct HydrationReminder {
+    last_check: Instant,
+    initial_remind_time: Instant,
+    has_been_reminded: bool,
+    first_reminder: bool,
 }
 
 impl Default for HydrationReminder {
     fn default() -> Self {
         Self {
             last_check: Instant::now(),
+            initial_remind_time: Instant::now(),
+            has_been_reminded: false,
             first_reminder: false,
         }
     }
@@ -62,14 +79,33 @@ impl App for HydrationReminder {
                     .map(|style| style.size = 48.);
 
                 if !self.first_reminder || self.last_check.elapsed() > DRINK_INTERVAL {
-                    ui.visuals_mut().override_text_color = Some(Color32::from_rgb(105, 138, 185));
+                    // For more attention grabbing flashing
+                    ctx.request_repaint_after(Duration::from_secs(1));
+
+                    if !self.has_been_reminded {
+                        self.initial_remind_time = Instant::now();
+                        self.has_been_reminded = true;
+                    }
+
+                    let should_change_color = Instant::now()
+                        .duration_since(self.initial_remind_time)
+                        .as_secs()
+                        % 2
+                        == 0;
+
+                    ui.visuals_mut().override_text_color = Some(if should_change_color {
+                        colors::BLUE
+                    } else {
+                        colors::RED
+                    });
+
                     if ui.heading("Hydrate 💧").clicked() {
                         self.last_check = Instant::now();
                         self.first_reminder = true;
+                        self.has_been_reminded = false;
                     }
                 } else {
-                    ui.visuals_mut().override_text_color =
-                        Some(Color32::from_additive_luminance(100));
+                    ui.visuals_mut().override_text_color = Some(colors::MUTED);
                     ui.heading("Nice");
                 }
             });
