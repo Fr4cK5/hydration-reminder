@@ -10,7 +10,7 @@ use eframe::{
 const DRINK_INTERVAL: Duration = Duration::from_secs(20 * 60); // 20 mins
 
 #[cfg(debug_assertions)]
-const DRINK_INTERVAL: Duration = Duration::from_secs(1);
+const DRINK_INTERVAL: Duration = Duration::from_secs(5);
 
 const ICON_BYTES: &[u8] = include_bytes!("../assets/icon.png");
 const WIN_SIZE: [f32; 2] = [265., 70.];
@@ -21,6 +21,20 @@ mod colors {
     pub const BLUE: Color32 = Color32::from_rgb(105, 138, 185);
     pub const RED: Color32 = Color32::from_rgb(201, 79, 109);
     pub const MUTED: Color32 = Color32::from_additive_luminance(100);
+}
+
+mod utils {
+    use std::time::Duration;
+
+    pub fn to_string_mins_secs(duration: &Duration) -> String {
+        let minutes = duration.as_secs() / 60;
+        let seconds = duration.as_secs() % 60;
+
+        if minutes <= 0 {
+            return format!("{:0>2}", seconds);
+        }
+        format!("{:0>2}:{:0>2}", minutes, seconds)
+    }
 }
 
 fn main() -> eframe::Result<()> {
@@ -57,6 +71,14 @@ struct HydrationReminder {
     first_reminder: bool,
 }
 
+impl HydrationReminder {
+    fn hydrate(&mut self) {
+        self.last_check = Instant::now();
+        self.first_reminder = true;
+        self.has_been_reminded = false;
+    }
+}
+
 impl Default for HydrationReminder {
     fn default() -> Self {
         Self {
@@ -72,6 +94,10 @@ impl App for HydrationReminder {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint_after(Duration::from_secs(5));
         CentralPanel::default().show(ctx, |ui| {
+            let is_hovering_viewport = ui.ui_contains_pointer();
+            if is_hovering_viewport {
+                ctx.request_repaint_after(Duration::from_secs(1));
+            }
             ui.vertical_centered_justified(|ui| {
                 ui.style_mut()
                     .text_styles
@@ -99,14 +125,28 @@ impl App for HydrationReminder {
                         colors::RED
                     });
 
-                    if ui.heading("Hydrate 💧").clicked() {
-                        self.last_check = Instant::now();
-                        self.first_reminder = true;
-                        self.has_been_reminded = false;
+                    let text = if is_hovering_viewport {
+                        &utils::to_string_mins_secs(
+                            &Instant::now().duration_since(self.initial_remind_time),
+                        )
+                    } else {
+                        "Hydrate 💧"
+                    };
+
+                    if ui.heading(text).clicked() {
+                        self.hydrate();
                     }
                 } else {
                     ui.visuals_mut().override_text_color = Some(colors::MUTED);
-                    ui.heading("Nice");
+
+                    let text = if is_hovering_viewport {
+                        &utils::to_string_mins_secs(&Instant::now().duration_since(self.last_check))
+                    } else {
+                        "Nice"
+                    };
+                    if ui.heading(text).clicked_by(egui::PointerButton::Secondary) {
+                        self.hydrate();
+                    }
                 }
             });
         });

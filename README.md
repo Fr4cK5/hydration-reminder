@@ -10,6 +10,12 @@ No notifications or sounds, just some text changing its color. (Yes, this was ma
 
 Once reminded, just click the text that says "Hydrate 💧" and it'll shut up for 20 minutes.
 
+Hovering your mouse pointer over the window will show you the elapsed
+time since either the last reminder or since the current reminder has started.
+
+Additionally, if you happen to hydrate before the timer runs out,
+you can click the text with your secondary mouse button (usually the right one) to reset the timer.
+
 ## Build
 
 ```sh
