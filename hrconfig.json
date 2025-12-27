@@ -1,0 +1,4 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Fr4cK5/hydration-reminder/refs/heads/master/schema.json",
+  "reminder_interval": "20m"
+}

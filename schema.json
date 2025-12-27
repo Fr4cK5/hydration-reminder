@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FSConfig",
+  "type": "object",
+  "properties": {
+    "reminder_interval": {
+      "description": "A low-resolution duration in simple string form.\n\nIt's composed of any number and a suffix, repeated as many times as one likes.\n\nThe suffix can be any of\n- s (seconds)\n- m (minutes)\n- h (hours)\n\n# Examples\nAll of the following produce a valid output [`Duration`]\n- `30m`\n- `20m30s`\n- `10h10m10s`\n- `10s2h`\n- `20s20s80s`",
+      "type": "string"
+    }
+  },
+  "required": ["reminder_interval"]
+}

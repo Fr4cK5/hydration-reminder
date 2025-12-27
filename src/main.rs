@@ -1,20 +1,23 @@
-#![windows_subsystem = "windows"]
-use std::time::{Duration, Instant};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::{
+    fs,
+    time::{Duration, Instant},
+};
 
 use eframe::{
     App,
-    egui::{self, CentralPanel, IconData, TextStyle, ViewportBuilder},
+    egui::{self, CentralPanel, Color32, IconData, TextStyle, ViewportBuilder},
 };
+use schemars::schema_for;
 
-#[cfg(not(debug_assertions))]
-const DRINK_INTERVAL: Duration = Duration::from_secs(20 * 60); // 20 mins
-
-#[cfg(debug_assertions)]
-const DRINK_INTERVAL: Duration = Duration::from_secs(5);
+use crate::config::{Config, FSConfig};
 
 const ICON_BYTES: &[u8] = include_bytes!("../assets/icon.png");
 const WIN_SIZE: [f32; 2] = [265., 70.];
+const CONFIG_FILE_NAME: &'static str = "hrconfig.json";
 
+mod config;
 mod colors {
     use eframe::egui::Color32;
 
@@ -57,18 +60,39 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    let app = HydrationReminder::new();
+    if app.config.is_default {
+        fs::write(
+            CONFIG_FILE_NAME,
+            serde_json::to_string(&FSConfig::default())
+                .expect("Default config serialization error."),
+        )
+        .expect("Config file-write error.");
+    }
+
+    if cfg!(debug_assertions) {
+        let schema = schema_for!(FSConfig);
+        fs::write(
+            "schema.json",
+            serde_json::to_string_pretty(&schema).expect("Schema serialization error."),
+        )
+        .expect("Schema file-write error.");
+    }
+
     eframe::run_native(
         "Hydration Reminder",
         options,
-        Box::new(|_cc| Ok(Box::new(HydrationReminder::default()))),
+        Box::new(|_cc| Ok(Box::new(app))),
     )
 }
 
 struct HydrationReminder {
+    startup_time: Instant,
     last_check: Instant,
     initial_remind_time: Instant,
     has_been_reminded: bool,
     first_reminder: bool,
+    config: Config,
 }
 
 impl HydrationReminder {
@@ -77,15 +101,15 @@ impl HydrationReminder {
         self.first_reminder = true;
         self.has_been_reminded = false;
     }
-}
 
-impl Default for HydrationReminder {
-    fn default() -> Self {
+    pub fn new() -> Self {
         Self {
+            startup_time: Instant::now(),
             last_check: Instant::now(),
             initial_remind_time: Instant::now(),
             has_been_reminded: false,
             first_reminder: false,
+            config: Config::try_from_path(CONFIG_FILE_NAME).unwrap_or_default(),
         }
     }
 }
@@ -104,7 +128,15 @@ impl App for HydrationReminder {
                     .get_mut(&TextStyle::Heading)
                     .map(|style| style.size = 48.);
 
-                if !self.first_reminder || self.last_check.elapsed() > DRINK_INTERVAL {
+                if self.config.time_parsing_failed
+                    && Instant::now().duration_since(self.startup_time) < Duration::from_secs(10)
+                {
+                    ui.colored_label(Color32::RED, "Invalid reminder interval, using default");
+                    ui.colored_label(Color32::RED, "Missing a duration suffix such as s, m or h?");
+                    ui.colored_label(Color32::RED, "Example: 10m, 20m30s, 1h1m1s");
+                } else if !self.first_reminder
+                    || self.last_check.elapsed() > self.config.reminder_interval
+                {
                     // For more attention grabbing flashing
                     ctx.request_repaint_after(Duration::from_secs(1));
 

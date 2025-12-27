@@ -16,6 +16,15 @@ time since either the last reminder or since the current reminder has started.
 Additionally, if you happen to hydrate before the timer runs out,
 you can click the text with your secondary mouse button (usually the right one) to reset the timer.
 
+## Configuration
+
+In order to configure the reminder interval to your liking, change value for `reminder_interval` in `hrconfig.json`.
+A schema is present and can be easily referred to in order to understand the duration syntax.
+
+The schema can be found [here](https://github.com/Fr4cK5/hydration-reminder/blob/master/schema.json) (or as [raw](https://raw.githubusercontent.com/Fr4cK5/hydration-reminder/refs/heads/master/schema.json)), and is already present in the default `hrconfig.json` file.
+
+Make sure this config file is always placed next to the binary, such that the binary can access it by reading `./hrconfig.json`.
+
 ## Build
 
 ```sh
